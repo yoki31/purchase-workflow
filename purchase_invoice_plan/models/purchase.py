@@ -16,8 +16,6 @@ class PurchaseOrder(models.Model):
         inverse_name="purchase_id",
         string="Invoice Plan",
         copy=False,
-        readonly=True,
-        states={"draft": [("readonly", False)]},
     )
     use_invoice_plan = fields.Boolean(
         string="Use Invoice Plan",
@@ -38,6 +36,7 @@ class PurchaseOrder(models.Model):
         string="Total Amount",
     )
 
+    @api.depends("invoice_plan_ids")
     def _compute_ip_total(self):
         for rec in self:
             installments = rec.invoice_plan_ids.filtered("installment")
@@ -51,6 +50,14 @@ class PurchaseOrder(models.Model):
                 and rec.invoice_plan_ids
                 and len(rec.invoice_plan_ids.filtered(lambda l: not l.invoiced))
             )
+
+    @api.constrains("invoice_plan_ids")
+    def _check_ip_total_percent(self):
+        for rec in self:
+            installments = rec.invoice_plan_ids.filtered("installment")
+            ip_total_percent = sum(installments.mapped("percent"))
+            if float_round(ip_total_percent, 0) > 100:
+                raise UserError(_("Invoice plan total percentage must not exceed 100%"))
 
     @api.constrains("state")
     def _check_invoice_plan(self):
@@ -73,7 +80,7 @@ class PurchaseOrder(models.Model):
         self.invoice_plan_ids.unlink()
         invoice_plans = []
         Decimal = self.env["decimal.precision"]
-        prec = Decimal.precision_get("Product Unit of Measure")
+        prec = Decimal.precision_get("Purchase Invoice Plan Percent")
         percent = float_round(1.0 / num_installment * 100, prec)
         percent_last = 100 - (percent * (num_installment - 1))
         for i in range(num_installment):
@@ -112,7 +119,7 @@ class PurchaseOrder(models.Model):
 
     def action_view_invoice(self, invoices=False):
         invoice_plan_id = self._context.get("invoice_plan_id")
-        if invoice_plan_id:
+        if invoice_plan_id and invoices:
             plan = self.env["purchase.invoice.plan"].browse(invoice_plan_id)
             for invoice in invoices:
                 plan._compute_new_invoice_quantity(invoice)
@@ -171,7 +178,7 @@ class PurchaseInvoicePlan(models.Model):
     )
     percent = fields.Float(
         string="Percent",
-        digits="Product Unit of Measure",
+        digits="Purchase Invoice Plan Percent",
         help="This percent will be used to calculate new quantity",
     )
     amount = fields.Float(
@@ -189,6 +196,11 @@ class PurchaseInvoicePlan(models.Model):
         string="Invoices",
         readonly=True,
     )
+    amount_invoiced = fields.Float(
+        compute="_compute_invoiced",
+        store=True,
+        readonly=False,
+    )
     to_invoice = fields.Boolean(
         string="Next Invoice",
         compute="_compute_to_invoice",
@@ -201,10 +213,19 @@ class PurchaseInvoicePlan(models.Model):
         help="If this line already invoiced",
         store=True,
     )
+    no_edit = fields.Boolean(
+        compute="_compute_no_edit",
+    )
 
     @api.depends("percent")
     def _compute_amount(self):
         for rec in self:
+            # With invoice already created, no recompute
+            if rec.invoiced:
+                rec.amount = rec.amount_invoiced
+                rec.percent = rec.amount / rec.purchase_id.amount_untaxed * 100
+                continue
+            # For last line, amount is the left over
             if rec.last:
                 installments = rec.purchase_id.invoice_plan_ids.filtered(
                     lambda l: l.invoice_type == "installment"
@@ -243,6 +264,10 @@ class PurchaseInvoicePlan(models.Model):
                 rec.to_invoice = True
                 break
 
+    def _get_amount_invoice(self, invoices):
+        """Hook function"""
+        return sum(invoices.mapped("amount_untaxed"))
+
     @api.depends("invoice_ids.state")
     def _compute_invoiced(self):
         for rec in self:
@@ -250,11 +275,20 @@ class PurchaseInvoicePlan(models.Model):
                 lambda l: l.state in ("draft", "posted")
             )
             rec.invoiced = invoiced and True or False
+            rec.amount_invoiced = rec._get_amount_invoice(invoiced[:1])
 
     def _compute_last(self):
         for rec in self:
             last = max(rec.purchase_id.invoice_plan_ids.mapped("installment"))
             rec.last = rec.installment == last
+
+    def _no_edit(self):
+        self.ensure_one()
+        return self.invoiced
+
+    def _compute_no_edit(self):
+        for rec in self:
+            rec.no_edit = rec._no_edit()
 
     def _compute_new_invoice_quantity(self, invoice_move):
         self.ensure_one()
@@ -264,10 +298,11 @@ class PurchaseInvoicePlan(models.Model):
         move = invoice_move.with_context({"check_move_validity": False})
         for line in move.invoice_line_ids:
             self._update_new_quantity(line, percent)
+        move.line_ids.filtered("exclude_from_invoice_tab").unlink()
         move._move_autocomplete_invoice_lines_values()  # recompute dr/cr
 
     def _update_new_quantity(self, line, percent):
-        """ Hook function """
+        """Hook function"""
         plan_qty = self._get_plan_qty(line.purchase_line_id, percent)
         prec = line.purchase_line_id.product_uom.rounding
         if float_compare(abs(plan_qty), abs(line.quantity), prec) == 1:
@@ -284,3 +319,16 @@ class PurchaseInvoicePlan(models.Model):
     def _get_plan_qty(self, order_line, percent):
         plan_qty = order_line.product_qty * (percent / 100)
         return plan_qty
+
+    def unlink(self):
+        lines = self.filtered("no_edit")
+        if lines:
+            installments = [str(x) for x in lines.mapped("installment")]
+            raise UserError(
+                _(
+                    "Installment %s: already used and not allowed to delete.\n"
+                    "Please discard changes."
+                )
+                % ", ".join(installments)
+            )
+        return super().unlink()

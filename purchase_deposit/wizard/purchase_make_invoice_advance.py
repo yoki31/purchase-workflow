@@ -144,6 +144,19 @@ class PurchaseAdvancePaymentInv(models.TransientModel):
         )
         return invoice
 
+    def _prepare_advance_purchase_line(self, order, product, tax_ids, amount):
+        return {
+            "name": _("Advance: %s") % (time.strftime("%m %Y"),),
+            "price_unit": amount,
+            "product_qty": 0.0,
+            "order_id": order.id,
+            "product_uom": product.uom_id.id,
+            "product_id": product.id,
+            "taxes_id": [(6, 0, tax_ids)],
+            "date_planned": datetime.today().strftime(DEFAULT_SERVER_DATETIME_FORMAT),
+            "is_deposit": True,
+        }
+
     def create_invoices(self):
         Purchase = self.env["purchase.order"]
         IrDefault = self.env["ir.default"].sudo()
@@ -190,25 +203,15 @@ class PurchaseAdvancePaymentInv(models.TransientModel):
             else:
                 tax_ids = taxes.ids
             context = {"lang": order.partner_id.lang}
-            po_line = PurchaseLine.create(
-                {
-                    "name": _("Advance: %s") % (time.strftime("%m %Y"),),
-                    "price_unit": amount,
-                    "product_qty": 0.0,
-                    "order_id": order.id,
-                    "product_uom": product.uom_id.id,
-                    "product_id": product.id,
-                    "taxes_id": [(6, 0, tax_ids)],
-                    "date_planned": datetime.today().strftime(
-                        DEFAULT_SERVER_DATETIME_FORMAT
-                    ),
-                    "is_deposit": True,
-                }
+            adv_po_line_dict = self._prepare_advance_purchase_line(
+                order, product, tax_ids, amount
             )
+            po_line = PurchaseLine.create(adv_po_line_dict)
             del context
-            self._create_invoice(order, po_line, amount)
-        if self._context.get("open_invoices", False):
-            return purchases.action_view_invoice()
+
+            if self._context.get("create_bills", False):
+                self._create_invoice(order, po_line, amount)
+                return purchases.action_view_invoice()
         return {"type": "ir.actions.act_window_close"}
 
     def _prepare_deposit_product(self):

@@ -32,8 +32,8 @@ class StockPicking(models.Model):
         message += "</ul>"
         return message
 
-    def action_done(self):
-        super(StockPicking, self).action_done()
+    def _action_done(self):
+        super(StockPicking, self)._action_done()
         request_obj = self.env["purchase.request"]
         for picking in self:
             requests_dict = {}
@@ -55,11 +55,12 @@ class StockPicking(models.Model):
                         requests_dict[request_id][request_line.id] = data
             for request_id in requests_dict:
                 request = request_obj.sudo().browse(request_id)
-                message = self._purchase_request_picking_confirm_message_content(
-                    picking, request, requests_dict[request_id]
-                )
-                request.sudo().message_post(
-                    body=message,
-                    subtype="mail.mt_comment",
-                    author_id=self.env.user.partner_id.id,
-                )
+                send_mail = request.company_id.notify_request_allocations
+                if send_mail:
+                    message = self._purchase_request_picking_confirm_message_content(
+                        picking, request, requests_dict[request_id]
+                    )
+                    request.sudo().message_post(
+                        body=message,
+                        author_id=self.env.user.partner_id.id,
+                    )

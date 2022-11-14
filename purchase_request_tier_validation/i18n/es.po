@@ -22,6 +22,11 @@ msgid "Can Review"
 msgstr ""
 
 #. module: purchase_request_tier_validation
+#: model_terms:ir.ui.view,arch_db:purchase_request_tier_validation.view_purchase_request_form_inherit_tier
+msgid "Confirm"
+msgstr "Confirmar"
+
+#. module: purchase_request_tier_validation
 #: model:ir.model.fields,field_description:purchase_request_tier_validation.field_purchase_request__display_name
 #: model:ir.model.fields,field_description:purchase_request_tier_validation.field_tier_definition__display_name
 msgid "Display Name"
@@ -90,6 +95,11 @@ msgid "Rejected"
 msgstr ""
 
 #. module: purchase_request_tier_validation
+#: model:ir.model.fields,field_description:purchase_request_tier_validation.field_purchase_request__rejected_message
+msgid "Rejected Message"
+msgstr ""
+
+#. module: purchase_request_tier_validation
 #: model:ir.model.fields,field_description:purchase_request_tier_validation.field_purchase_request__reviewer_ids
 msgid "Reviewers"
 msgstr ""
@@ -101,10 +111,20 @@ msgid "Tier Definition"
 msgstr "tier.definition"
 
 #. module: purchase_request_tier_validation
+#: model:ir.model.fields,field_description:purchase_request_tier_validation.field_purchase_request__to_validate_message
+msgid "To Validate Message"
+msgstr ""
+
+#. module: purchase_request_tier_validation
 #: model:ir.model.fields,field_description:purchase_request_tier_validation.field_purchase_request__validated
 #: model_terms:ir.ui.view,arch_db:purchase_request_tier_validation.view_purchase_request_filter
 msgid "Validated"
 msgstr "Validada"
+
+#. module: purchase_request_tier_validation
+#: model:ir.model.fields,field_description:purchase_request_tier_validation.field_purchase_request__validated_message
+msgid "Validated Message"
+msgstr ""
 
 #. module: purchase_request_tier_validation
 #: model:ir.model.fields,field_description:purchase_request_tier_validation.field_purchase_request__review_ids
@@ -125,9 +145,6 @@ msgstr ""
 #~ msgid "<i class=\"fa fa-thumbs-up\"/> Operation has been <b>validated</b>!"
 #~ msgstr ""
 #~ "<i class=\"fa fa-thumbs-up\"/> La operación ha sido <b>validada</b>!"
-
-#~ msgid "Confirm"
-#~ msgstr "Confirmar"
 
 #~ msgid "Dismiss"
 #~ msgstr "Descartar"
