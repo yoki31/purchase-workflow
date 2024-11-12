@@ -36,11 +36,14 @@ Purchase Order Lines.
 Once the Purchase Order has been confirmed, subsequent changes made to the
 scheduled dates in the PO lines will produce a reorganization of the
 corresponding stock moves in the Incoming Shipments, creating/deleting new
-Incoming Shipments when needed, to ensure that each Incoming Shipment
-contains moves to be received in the same date.
+Incoming Shipments when needed, to ensure that each Incoming Shipment contains
+moves to be received in the same date.
+
+Adding a new line on a confirmed PO will insert the new move in a picking with
+the corresponding date.
 
 This module is also designed for extensibility, so that you can define
-in other modules new criteria to split deliveries.
+in other modules new criteria to split incoming shipments.
 
 **Table of contents**
 
@@ -55,6 +58,12 @@ When a Purchase Order is confirmed, shipments will be grouped by same scheduled 
 
 Changelog
 =========
+
+14.0.1.2.0 (2021-08-17)
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* Refactor code to support addition of PO line on confirmed PO and better
+  support the change of date on a confirmed purchase order.
 
 12.0.2.1.0 (2020-04-30)
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,7 +80,6 @@ Changelog
 
 * Improve the module: when changing the date on a purchase line, this will
   cause a split or a merge of the pickings, to keep 1 picking per date.
-
 
 11.0.1.0.0 (2018-09-16)
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -102,6 +110,7 @@ Authors
 * Numerigraphe
 * ForgeFlow
 * Camptocamp
+* BCIM
 
 Contributors
 ~~~~~~~~~~~~
@@ -114,6 +123,7 @@ Contributors
 * Alexandre Fayolle <alexandre.fayolle@camptocamp.com>
 * Pimolnat Suntian <pimolnats@ecosoft.co.th>
 * Mallory Marcot <contact@mallory-marcot.com>
+* Jacques-Etienne Baudoux (BCIM) <je@bcim.be>
 
 Maintainers
 ~~~~~~~~~~~
